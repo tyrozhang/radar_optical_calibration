@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(javac:*)",
+      "Bash(java:*)",
+      "Bash(mvn compile *)",
+      "Bash(mvn -version)",
+      "Bash(export JAVA_HOME=\"/d/Java/jdk-17.0.2\")",
+      "Bash(export PATH=\"$JAVA_HOME/bin:$PATH\")",
+      "Bash(mvn clean *)",
+      "Bash(chmod +x d:/radar_optical_calibration/mvn)",
+      "Bash(./mvn -version)",
+      "Bash(./mvn -q test-compile)",
+      "Bash(mvn test *)",
+      "Bash(javap -p -classpath target/classes gds.cloud.module.antidrone.utils.radar.calibration.TrackerConfigLoader)",
+      "Bash(javap -p -c -classpath target/classes 'gds.cloud.module.antidrone.utils.radar.calibration.RadarOpticTrackerV2$SegmentedCompensation')",
+      "Bash(javap -p -c -classpath target/classes gds.cloud.module.antidrone.utils.radar.calibration.TrackerConfigLoader)",
+      "Bash(javap -v -classpath target/classes 'gds.cloud.module.antidrone.utils.radar.calibration.RadarOpticTrackerV2$SegmentedCompensation')",
+      "Bash(javap -v -classpath target/classes 'gds.cloud.module.antidrone.utils.radar.calibration.RadarOpticTrackerV2$FixedCompensation')",
+      "Bash(./mvn clean *)",
+      "Read(//d/radar_optical_calibration/target/classes/gds/cloud/module/antidrone/utils/radar/calibration/**)",
+      "Bash(javap -p -classpath target/classes 'gds.cloud.module.antidrone.utils.radar.calibration.RadarOpticTrackerV2$SegmentedCompensation')",
+      "Bash(mvn test-compile *)",
+      "Bash(mvn:*)",
+      "Bash(python:*)",
+      "Bash(./mvn compile *)",
+      "Bash(./mvn/bin/mvn -o compile)",
+      "Bash(bash mvn:*)",
+      "Read(//d/Java//**)",
+      "Read(//d/Java/jdk-17.0.2/bin/**)",
+      "Bash(target/test-classes gds.cloud.module.antidrone.utils.radar.calibration.SmoothTrackingControllerTest)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

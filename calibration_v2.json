@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "calibration_date": "2026-04-28",
+  "valid_until": "2027-04-28",
+  "parameters": {
+    "radar_blh": {"B": 34.172041431611106, "L": 108.81303387594589, "H": 394.5},
+    "optical_blh": {"B": 34.173015, "L": 108.811778, "H": 394.50687},
+    "dAz0": -0.053648,
+    "dEl0": 1.164692,
+    "radar_compensation_type": "fixed",
+    "dAz_radar": -0.532327,
+    "dEl_radar": -0.008304,
+    "radar2opticalTotalDelayMs": 500
+  },
+  "quality": {
+    "optical": {
+      "rms_az": 6.018943,
+      "rms_el": 0.206529,
+      "valid_count": 15,
+      "total_count": 15
+    },
+    "radar": {
+      "mean_az_error": -0.532327,
+      "mean_el_error": -0.008304,
+      "sample_count": 15
+    }
+  },
+  "radar_analysis": {
+    "overall": {
+      "mean_az": -0.532327,
+      "mean_el": -0.008304,
+      "std_az": 1.282981,
+      "std_el": 0.180117,
+      "count": 15
+    },
+    "by_distance": {
+      "0-1km": {
+        "mean_az": -0.532327,
+        "mean_el": -0.008304,
+        "count": 15
+      }
+    },
+    "recommendation": "雷达误差分析结论：\n1. 总体偏差：方位 -0.5323° ± 1.2830°，俯仰 -0.0083° ± 0.1801°（样本数 15）\n2. 误差变化不显著（决策阈值 0.1000°），使用固定补偿即可\n"
+  }
+}

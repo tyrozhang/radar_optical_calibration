@@ -32,25 +32,40 @@
 
 | 文件 | 作用 |
 |------|------|
-| `CalibrateV2.java` | **标定主程序**。读取标定数据，计算光电静态偏差，调用雷达误差分析，输出 `calibration_v2.json` |
+| `algo/CalibrateV2.java` | **标定主程序**。读取标定数据，计算光电静态偏差，调用雷达误差分析，输出 `calibration_v2.json` |
+| `algo/RadarErrorAnalyzer.java` | **雷达误差分析器**。按配置的分段（距离/高度）统计误差，决策使用固定补偿或分段补偿，生成分析报告 |
+| `algo/Simulator.java` | **模拟数据生成器**。基于真实物理模型生成带一致性的测试数据（32 个样本，均匀覆盖 4 个距离段），输出 `calibration_data_v2.json` |
 | `RadarOpticTrackerV2.java` | **在线跟踪器**。加载标定结果，接收目标 BLH 坐标，输出光电驱动指令。支持交互模式和模拟测试模式。**增强版**：新增雷达距离/面积参数输入，输出光电到目标距离和目标尺寸信息 |
-| `Simulator.java` | **模拟数据生成器**。基于真实物理模型生成带一致性的测试数据（32 个样本，均匀覆盖 4 个距离段），输出 `calibration_data_v2.json` |
-| `RadarErrorAnalyzer.java` | **雷达误差分析器**。按配置的分段（距离/高度）统计误差，决策使用固定补偿或分段补偿，生成分析报告 |
+| `TrackingCore.java` | **跟踪核心计算逻辑**（共享基础类）。抽取公共逻辑：雷达补偿类型定义、补偿值查找、角度归一化、基础角度计算、目标尺寸计算 |
+| `TrackingCommand.java` | **光电跟踪命令**（统一数据结构）。覆盖控制指令、中间量、目标信息、时间戳的完整记录 |
+| `TrackerConfigLoader.java` | **标定配置加载器**。从 `calibration_v2.json` 解析标定参数，供跟踪器和控制器共用 |
+| `TrackPredictor.java` | **航迹预测器**。基于雷达提供的真实速度数据（velEast/North/Up）进行线性外推，解决雷达上报频率低导致的光电画面跳跃问题 |
+| `SmoothTracker.java` | **纯预测器**。管理轨迹滑动窗口（最近 2 个雷达点），基于速度线性外推计算任意时刻的目标位置 |
+| `SmoothTrackingController.java` | **联动控制器**。状态机驱动，协调雷达数据到达和光电控制周期 |
+| `SmoothTrackingControllerInvoker.java` | **平滑跟踪控制器调用器**（第三方接入层）。提供全局默认实例，支持多实例管理 |
+| `TrackerInvoker.java` | **第三方接入调用器**。统一入口，支持多实例管理、幂等注册、并发安全 |
 | `model/StationBLH.java` | 站点大地坐标数据模型（B: 纬度°, L: 经度°, H: 高度 m） |
 | `model/SegmentConfig.java` | 基础分段配置类（名称、最小/最大边界、包含判断） |
 | `model/RadarSegmentConfig.java` | 雷达分段配置类，继承 SegmentConfig，增加补偿值 dAz / dEl |
 | `util/CoordinateUtils.java` | WGS84 坐标转换工具：BLH ↔ ECEF ↔ ENU ↔ AzEl，以及 Haversine 球面距离计算 |
 | `util/SimpleJsonParser.java` | 简易 JSON 解析器，无第三方依赖，支持对象、数组、字符串、数字、布尔值 |
-| `DebugTest.java` / `DebugTest2.java` | 调试测试程序 |
-| `TrackerInvoker.java` | **第三方接入调用器**。统一入口，支持多实例管理、幂等注册、并发安全 |
-| `TrackerInvokerTest.java` | TrackerInvoker 单元测试 |
-| `CalibrationValidator.java` | **标定参数验证器**。反向验证标定质量，对比计算值与实测值，输出误差统计 |
+
+### 测试文件
+
+| 文件 | 作用 |
+|------|------|
+| `test/DebugTest.java` / `test/DebugTest2.java` | 调试测试程序 |
+| `test/TrackerInvokerTest.java` | TrackerInvoker 单元测试 |
+| `test/CalibrationReverseTest.java` | **标定参数反向验证测试**。反向验证标定质量，对比计算值与实测值，输出误差统计 |
+| `test/SmoothTrackingControllerTest.java` | 平滑跟踪控制器交互式测试 |
 
 ### JSON 文件
 
 | 文件 | 作用 |
 |------|------|
 | `calibration_data_v2.json` | **标定输入数据**。包含雷达/光电站坐标和 32 个数据点的 RTK 真值、雷达上报、光电实测角度 |
+| `calibration_data_v2_all.json` | 扩展标定输入数据（更多样本） |
+| `calibration_data_v2_test.json` | 测试用标定输入数据 |
 | `calibration_v2.json` | **标定结果输出**。包含光电偏差参数、雷达补偿策略（固定/分段）、质量评估和误差分析报告 |
 
 ## 环境要求
@@ -92,13 +107,13 @@ java -jar radar-calibration.jar
 如果没有真实采集数据，先用模拟器生成测试数据：
 
 ```bash
-java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.Simulator
+java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.algo.Simulator
 ```
 
 或使用 jar 包运行（需在项目根目录）：
 
 ```bash
-java -cp target/radar-calibration.jar gds.cloud.module.antidrone.utils.radar.calibration.Simulator
+java -cp target/radar-calibration.jar gds.cloud.module.antidrone.utils.radar.calibration.algo.Simulator
 ```
 
 参数说明：
@@ -108,7 +123,7 @@ java -cp target/radar-calibration.jar gds.cloud.module.antidrone.utils.radar.cal
 ### 3. 运行标定程序
 
 ```bash
-java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.CalibrateV2
+java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.algo.CalibrateV2
 ```
 
 或使用 jar 包：
@@ -224,8 +239,10 @@ java -cp target/radar-calibration.jar gds.cloud.module.antidrone.utils.radar.cal
 
 | 组件 | 文件 | 职责 |
 |------|------|------|
+| `TrackPredictor` | `TrackPredictor.java` | **真实速度航迹预测器**。利用雷达提供的真实速度数据（velEast/North/Up）或位置差分估算速度，基于 UTC 时间戳进行线性外推，支持机动检测 |
 | `SmoothTracker` | `SmoothTracker.java` | **纯预测器**。管理轨迹滑动窗口（最近 2 个雷达点），基于速度线性外推计算任意时刻的目标位置 |
 | `SmoothTrackingController` | `SmoothTrackingController.java` | **联动控制器**。状态机驱动，协调雷达数据到达和光电控制周期 |
+| `SmoothTrackingControllerInvoker` | `SmoothTrackingControllerInvoker.java` | **第三方接入调用器**。全局默认实例 + 多实例管理，支持并发安全 |
 
 ### 工作流程
 
@@ -461,11 +478,11 @@ java -cp target/classes com.radar.calibration.TrackerInvokerTest
 
 ---
 
-## 标定参数验证（CalibrationValidator）
+## 标定参数验证（CalibrationReverseTest）
 
 ### 功能说明
 
-`CalibrationValidator` 用于**反向验证标定参数的质量**。它读取 `calibration_data_v2.json` 中的雷达 BLH 数据点，使用 `RadarOpticTrackerV2` 计算理论 Az/El，与实测 `Az_measured`/`El_measured` 对比，输出误差统计和评估结论。
+`CalibrationReverseTest` 用于**反向验证标定参数的质量**。它读取 `calibration_data_v2.json` 中的雷达 BLH 数据点，使用 `RadarOpticTrackerV2` 计算理论 Az/El，与实测 `Az_measured`/`El_measured` 对比，输出误差统计和评估结论。
 
 ### 使用场景
 
@@ -477,10 +494,10 @@ java -cp target/classes com.radar.calibration.TrackerInvokerTest
 
 ```bash
 # 默认运行（使用默认文件路径）
-java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.CalibrationValidator
+java -cp "target/classes;target/test-classes" gds.cloud.module.antidrone.utils.radar.calibration.CalibrationReverseTest
 
-# 指定数据文件、配置文件、使用哪类数据。其中 -s (值为 target_blh / radar_blh,默认 target_blh )
-java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.CalibrationValidator  -d calibration_data_v2.json -c calibration_v2.json -s radar_blh
+# 指定数据文件、配置文件、使用哪类数据。其中 -s (值为 target_blh / radar_blh, 默认 target_blh)
+java -cp "target/classes;target/test-classes" gds.cloud.module.antidrone.utils.radar.calibration.CalibrationReverseTest -d calibration_data_v2.json -c calibration_v2.json -s radar_blh
 ```
 
 ### 参数说明
@@ -489,6 +506,7 @@ java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.Calib
 |------|------|--------|
 | `-d <path>` | 原始标定数据文件路径 | `calibration_data_v2.json` |
 | `-c <path>` | 标定参数配置文件路径 | `calibration_v2.json` |
+| `-s <type>` | 信号类型（`target_blh` 或 `radar_blh`） | `target_blh` |
 
 ### 输出解读
 
@@ -496,8 +514,8 @@ java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.Calib
 
 **1. 逐点对比表**
 ```
-序号   TargetID             Az_实测    Az_计算    Az_误差    El_实测    El_计算    El_误差
-1      SIM_1777106946592    8.9200     6.9300     -1.9900    -6.4500    -6.7779    -0.3279
+序号   B            L            H            Az_实测      Az_计算      Az_误差      El_实测      El_计算      El_误差      Az_几何      El_几何
+1      39.9042      116.4074     50.0000      8.9200       6.9300       -1.9900      -6.4500      -6.7779      -0.3279      ...          ...
 ...
 ```
 
@@ -524,22 +542,3 @@ java -cp target/classes gds.cloud.module.antidrone.utils.radar.calibration.Calib
 | 均值 | 系统性偏差 | 接近 0° |
 | 标准差 | 随机误差大小 | < 1.0° |
 | 最大绝对值 | 最坏情况误差 | < 3.0° |
-
-### 预测模式测试命令
-
-java -cp "target/classes;target/test-classes" gds.cloud.module.antidrone.utils.radar.calibration.SmoothTrackingControllerTest --interactive  --prediction-count 10 --tick-interval 500
-
---prediction-count  最多预测次数 默认10
---tick-interval 50 预测间隔时间 默认 50ms
-
-输入：
-39.900 116.400 100 或者（带目标面积） 39.900 116.400 100 25.5
-
-
-### 编译命令
-
-```bash
-cd d:\coding\radar_optical_calibration
-cmd /c "javac -encoding UTF-8 -d out -sourcepath src\main\java \
-    src\main\java\gds\cloud\module\antidrone\utils\radar\calibration\CalibrationValidator.java"
-```

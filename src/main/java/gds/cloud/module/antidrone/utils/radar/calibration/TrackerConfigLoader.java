@@ -56,6 +56,9 @@ public class TrackerConfigLoader {
                     : null
             );
 
+            // 焦距查表（可选，默认空表）
+            FocalLengthTable focalLengthTable = parseFocalLengthTable(params);
+
             log.info(String.format("配置加载成功: 光电站 B=%.6f°, L=%.6f°, H=%.1fm",
                 opticalBlh.B(), opticalBlh.L(), opticalBlh.H()));
             log.info(String.format("ΔAz0=%.6f°, ΔEl0=%.6f°", dAz0, dEl0));
@@ -63,8 +66,9 @@ public class TrackerConfigLoader {
                 (radarComp instanceof RadarOpticTrackerV2.FixedCompensation ? "fixed" : "segmented"));
             log.info("总时延: " + totalDelayMs + " ms");
             log.info("俯仰角约定: " + elevationConvention);
+            log.info("焦距表: " + (focalLengthTable.isEmpty() ? "未配置" : focalLengthTable.size() + "个条目"));
 
-            return new RadarOpticTrackerV2.Config(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention);
+            return new RadarOpticTrackerV2.Config(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention, focalLengthTable);
         } catch (IOException e) {
             throw new RadarOpticTrackerV2.TrackingException("加载配置文件失败: " + path, e);
         }
@@ -108,5 +112,30 @@ public class TrackerConfigLoader {
     private static long toLong(Object obj) {
         if (obj instanceof Number n) return n.longValue();
         return Long.parseLong(obj.toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static FocalLengthTable parseFocalLengthTable(Map<String, Object> params) {
+        Object tableObj = params.get("focal_length_table");
+        if (tableObj == null) {
+            return FocalLengthTable.empty();
+        }
+
+        Map<String, Object> tableMap = (Map<String, Object>) tableObj;
+        List<Object> entriesRaw = (List<Object>) tableMap.get("entries");
+        if (entriesRaw == null || entriesRaw.isEmpty()) {
+            return FocalLengthTable.empty();
+        }
+
+        List<FocalLengthTable.Entry> entries = new ArrayList<>();
+        for (Object obj : entriesRaw) {
+            Map<String, Object> entry = (Map<String, Object>) obj;
+            entries.add(new FocalLengthTable.Entry(
+                toDouble(entry.get("distance")),
+                toDouble(entry.get("focal_length"))
+            ));
+        }
+
+        return FocalLengthTable.of(entries);
     }
 }

@@ -30,6 +30,7 @@ public class RadarOpticTrackerV2 {
     private final double dEl0;
     private final RadarCompensation radarComp;
     private final ElevationConvention elevationConvention;
+    private final FocalLengthTable focalLengthTable;
 
     public RadarOpticTrackerV2(String configPath) {
         this(TrackerConfigLoader.load(configPath));
@@ -41,6 +42,7 @@ public class RadarOpticTrackerV2 {
         this.dEl0 = config.dEl0();
         this.radarComp = config.radarCompensation();
         this.elevationConvention = config.elevationConvention();
+        this.focalLengthTable = config.focalLengthTable();
     }
 
     /** 获取光电站BLH */
@@ -86,16 +88,19 @@ public class RadarOpticTrackerV2 {
         double elCmdOut = elevationConvention.apply(elCmd);
         double elGeoOut = elevationConvention.apply(elGeo);
 
-        // 2. 计算光电到目标距离（米）
+        // 2. 计算光电到目标距离（米，3D斜距）
         StationBLH targetBlh = new StationBLH(targetB, targetL, targetH);
         double opticalToTargetRange = CoordinateUtils.distance3D(opticalBlh, targetBlh);
 
-        // 3. 计算目标宽高
+        // 3. 焦距查表（基于3D斜距，与雷达补偿的 haversine 水平距离不同）
+        double focalLength = focalLengthTable.lookup(opticalToTargetRange);
+
+        // 4. 计算目标宽高
         double[] targetSize = TrackingCore.computeTargetSize(radarArea);
         double targetWidth = targetSize[0];
         double targetHeight = targetSize[1];
 
-        TrackingCommand cmd = new TrackingCommand(azCmd, elCmdOut, azGeo, elGeoOut, dAz0, dEl0, dAzRadar, dElRadar, opticalToTargetRange, targetWidth, targetHeight);
+        TrackingCommand cmd = new TrackingCommand(azCmd, elCmdOut, azGeo, elGeoOut, dAz0, dEl0, dAzRadar, dElRadar, opticalToTargetRange, targetWidth, targetHeight, focalLength);
 
         log.fine(String.format("=== 计算过程 ==="));
         log.fine(String.format("方位角 (Az): 几何角=%.6f° | 雷达补偿=%.6f° | 固定补偿=%.6f° | 总指令=%.6f°",
@@ -135,7 +140,10 @@ public class RadarOpticTrackerV2 {
     public record SegmentedCompensation(List<RadarSegmentConfig> segments)
         implements RadarCompensation, TrackingCore.SegmentedCompensation {}
 
-    public record Config(StationBLH opticalBlh, double dAz0, double dEl0, RadarCompensation radarCompensation, long totalDelayMs, ElevationConvention elevationConvention) {
+    public record Config(StationBLH opticalBlh, double dAz0, double dEl0, RadarCompensation radarCompensation, long totalDelayMs, ElevationConvention elevationConvention, FocalLengthTable focalLengthTable) {
+        public Config(StationBLH opticalBlh, double dAz0, double dEl0, RadarCompensation radarCompensation, long totalDelayMs, ElevationConvention elevationConvention) {
+            this(opticalBlh, dAz0, dEl0, radarCompensation, totalDelayMs, elevationConvention, FocalLengthTable.empty());
+        }
         public Config(StationBLH opticalBlh, double dAz0, double dEl0, RadarCompensation radarCompensation, long totalDelayMs) {
             this(opticalBlh, dAz0, dEl0, radarCompensation, totalDelayMs, ElevationConvention.UP_NEGATIVE);
         }

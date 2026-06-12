@@ -92,6 +92,7 @@ public class SmoothTrackingControllerTest {
         System.out.printf("  dAzRadar=%.4f°   dElRadar=%.4f°%n", cmd.dAzRadar(), cmd.dElRadar());
         System.out.printf("  range=%.1fm      targetWidth=%.1fm   targetHeight=%.1fm%n",
                 cmd.opticalToTargetRange(), cmd.targetWidth(), cmd.targetHeight());
+        System.out.printf("  focalLength=%.1fmm%n", cmd.focalLength());
         System.out.printf("  阶段: %s (predictionCount=%d / max=%d)%n",
                 stage, predictionCount, maxPredictionCount);
     }

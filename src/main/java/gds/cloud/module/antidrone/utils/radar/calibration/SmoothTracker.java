@@ -33,6 +33,7 @@ public class SmoothTracker {
     private final TrackingCore.RadarCompensation radarComp;
     private final long totalDelayMs;
     private final ElevationConvention elevationConvention;
+    private final FocalLengthTable focalLengthTable;
 
     // ==================== 轨迹状态 ====================
 
@@ -70,6 +71,26 @@ public class SmoothTracker {
      * @param radarComp 雷达补偿策略（TrackingCore.RadarCompensation 或其子类型）
      * @param totalDelayMs 雷达到光电的总时延（毫秒）
      * @param elevationConvention 俯仰角符号约定
+     * @param focalLengthTable 焦距查表
+     */
+    public SmoothTracker(
+            StationBLH opticalBlh,
+            double dAz0, double dEl0,
+            TrackingCore.RadarCompensation radarComp,
+            long totalDelayMs,
+            ElevationConvention elevationConvention,
+            FocalLengthTable focalLengthTable) {
+        this.opticalBlh = opticalBlh;
+        this.dAz0 = dAz0;
+        this.dEl0 = dEl0;
+        this.radarComp = radarComp;
+        this.totalDelayMs = totalDelayMs;
+        this.elevationConvention = elevationConvention;
+        this.focalLengthTable = focalLengthTable;
+    }
+
+    /**
+     * 构造函数（向后兼容，默认空焦距表）
      */
     public SmoothTracker(
             StationBLH opticalBlh,
@@ -77,16 +98,11 @@ public class SmoothTracker {
             TrackingCore.RadarCompensation radarComp,
             long totalDelayMs,
             ElevationConvention elevationConvention) {
-        this.opticalBlh = opticalBlh;
-        this.dAz0 = dAz0;
-        this.dEl0 = dEl0;
-        this.radarComp = radarComp;
-        this.totalDelayMs = totalDelayMs;
-        this.elevationConvention = elevationConvention;
+        this(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention, FocalLengthTable.empty());
     }
 
     /**
-     * 构造函数（向后兼容，默认 UP_NEGATIVE）
+     * 构造函数（向后兼容，默认 UP_NEGATIVE + 空焦距表）
      */
     public SmoothTracker(
             StationBLH opticalBlh,
@@ -97,7 +113,7 @@ public class SmoothTracker {
     }
 
     /**
-     * 构造函数（向后兼容，默认 totalDelayMs=0, UP_NEGATIVE）
+     * 构造函数（向后兼容，默认 totalDelayMs=0, UP_NEGATIVE, 空焦距表）
      */
     public SmoothTracker(
             StationBLH opticalBlh,
@@ -119,7 +135,8 @@ public class SmoothTracker {
             config.dEl0(),
             config.radarCompensation(),
             config.totalDelayMs(),
-            config.elevationConvention()
+            config.elevationConvention(),
+            config.focalLengthTable()
         );
     }
 
@@ -308,10 +325,13 @@ public class SmoothTracker {
         double elCmdOut = elevationConvention.apply(elCmd);
         double elGeoOut = elevationConvention.apply(elGeo);
 
-        // 距离
+        // 距离（3D斜距）
         double range = CoordinateUtils.distance3D(
             opticalBlh, new StationBLH(targetB, targetL, targetH)
         );
+
+        // 焦距查表（基于3D斜距，与雷达补偿的 haversine 水平距离不同）
+        double focalLen = focalLengthTable.lookup(range);
 
         // 使用最新的雷达面积计算目标宽高（优先 t2，否则 t1）
         Double latestArea = hasTrajectory ? t2Area : t1Area;
@@ -323,6 +343,7 @@ public class SmoothTracker {
             azCmd, elCmdOut, azGeo, elGeoOut,
             dAz0, dEl0, dAzRadar, dElRadar,
             range, targetWidth, targetHeight,
+            focalLen,
             lastQueryTime
         );
     }

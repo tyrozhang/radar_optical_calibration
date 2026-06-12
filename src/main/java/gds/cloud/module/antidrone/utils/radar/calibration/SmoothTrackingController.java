@@ -66,7 +66,7 @@ public class SmoothTrackingController {
             long predictionIntervalMs,
             long totalDelayMs,
             ElevationConvention elevationConvention) {
-        this.tracker = new SmoothTracker(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention);
+        this.tracker = new SmoothTracker(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention, FocalLengthTable.empty());
         this.servo = servo;
         this.maxPredictionCount = maxPredictionCount;
         this.predictionInterval = predictionIntervalMs;
@@ -126,9 +126,13 @@ public class SmoothTrackingController {
             ServoController servo,
             int maxPredictionCount,
             long predictionIntervalMs) {
-        this(config.opticalBlh(), config.dAz0(), config.dEl0(), config.radarCompensation(),
-             servo, maxPredictionCount, predictionIntervalMs, config.totalDelayMs(),
-             config.elevationConvention());
+        this.tracker = new SmoothTracker(config.opticalBlh(), config.dAz0(), config.dEl0(),
+            config.radarCompensation(), config.totalDelayMs(), config.elevationConvention(),
+            config.focalLengthTable());
+        this.servo = servo;
+        this.maxPredictionCount = maxPredictionCount;
+        this.predictionInterval = predictionIntervalMs;
+        this.totalDelayMs = config.totalDelayMs();
     }
 
     /**

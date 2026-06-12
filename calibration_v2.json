@@ -11,7 +11,20 @@
     "dAz_radar": -0.532327,
     "dEl_radar": -0.008304,
     "elevation_convention": "up_positive",
-    "radar2opticalTotalDelayMs": 100
+    "radar2opticalTotalDelayMs": 100,
+    "focal_length_table": {
+      "unit": "mm",
+      "description": "距离(米)→焦距(mm)查表，按距离升序，线性插值。距离基准为3D斜距(ECEF欧氏距离)，与雷达补偿分段的haversine水平距离不同",
+      "entries": [
+        { "distance": 500,   "focal_length": 200.0 },
+        { "distance": 1000,  "focal_length": 135.0 },
+        { "distance": 2000,  "focal_length": 80.0  },
+        { "distance": 3000,  "focal_length": 55.0  },
+        { "distance": 5000,  "focal_length": 35.0  },
+        { "distance": 8000,  "focal_length": 22.0  },
+        { "distance": 10000, "focal_length": 15.0  }
+      ]
+    }
   },
   "quality": {
     "optical": {

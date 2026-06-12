@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /**
  * 跟踪程序调用器（第三方接入层）
@@ -23,6 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * </pre>
  */
 public class TrackerInvoker {
+
+    private static final Logger log = Logger.getLogger(TrackerInvoker.class.getName());
 
     // ==================== 全局默认实例 ====================
 
@@ -51,7 +54,7 @@ public class TrackerInvoker {
      */
     public RadarOpticTrackerV2 register(String key, String configPath) {
         return trackers.computeIfAbsent(key, k -> {
-            System.out.println("[TrackerInvoker] 新建实例: " + key);
+            log.info("新建实例: " + key);
             return new RadarOpticTrackerV2(configPath);
         });
     }
@@ -64,7 +67,7 @@ public class TrackerInvoker {
      * @return 新建的跟踪器实例
      */
     public RadarOpticTrackerV2 registerForce(String key, String configPath) {
-        System.out.println("[TrackerInvoker] 强制重建: " + key);
+        log.info("强制重建: " + key);
         RadarOpticTrackerV2 t = new RadarOpticTrackerV2(configPath);
         trackers.put(key, t);
         return t;

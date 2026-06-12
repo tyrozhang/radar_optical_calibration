@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Phase 2 标定程序（修复版）
@@ -19,6 +21,8 @@ import java.util.*;
  * - 雷达误差分析报告
  */
 public class CalibrateV2 {
+
+    private static final Logger log = Logger.getLogger(CalibrateV2.class.getName());
 
     private static final String JSON_FOLDER = "json";
 
@@ -50,28 +54,33 @@ public class CalibrateV2 {
      * @throws IOException 如果文件读写失败
      */
     public static void process(String inputPath, String outputPath) throws IOException {
-        System.out.println("[*] Phase 2 标定程序");
-        System.out.println("    输入: " + inputPath);
-        System.out.println("    输出: " + outputPath);
+        log.info("Phase 2 标定程序");
+        log.info("输入: " + inputPath);
+        log.info("输出: " + outputPath);
 
         // 1. 加载 Phase 2 格式数据
-        System.out.println("[*] 加载 Phase 2 标定数据...");
+        log.info("加载 Phase 2 标定数据...");
         CalibrateV2.Phase2Data data = loadPhase2Data(inputPath);
-        System.out.println("    共 " + data.points().size() + " 个数据点");
+        log.info("共 " + data.points().size() + " 个数据点");
 
         // 2. 光电静态偏差标定
-        System.out.println("[*] 计算光电静态偏差...");
+        log.info("计算光电静态偏差...");
         CalibrateV2.CalibrationResult optical = calibrateOptical(data);
-        System.out.printf("    ΔAz0 = %+.6f°, ΔEl0 = %+.6f°%n", optical.dAz0(), optical.dEl0());
+        log.info(String.format("ΔAz0 = %+.6f°, ΔEl0 = %+.6f°", optical.dAz0(), optical.dEl0()));
 
         // 3. 雷达误差分析
-        System.out.println("[*] 分析雷达误差...");
+        log.info("分析雷达误差...");
         StationBLH radarStation = data.radarBlh();
         StationBLH opticalBlh = data.opticalBlh();
         List<RadarErrorAnalyzer.ErrorSample> errorSamples = data.points().stream()
                 .filter(p -> p.radarBlh() != null)
                 .map(p -> {
-                    double distKm = CoordinateUtils.distance3D(radarStation, p.targetBlh()) / 1000.0;
+                    // 距离基准：光电站→目标的水平距离（haversine）
+                    // 必须与在线查找 TrackingCore.getRadarCompensation() 使用同一基准，
+                    // 否则标定时落入的距离段与在线查找的距离段不一致，导致补偿值错配
+                    double distKm = CoordinateUtils.haversineDistance(
+                            opticalBlh.B(), opticalBlh.L(),
+                            p.targetBlh().B(), p.targetBlh().L());
 
                     double[] opticalToRadar = CoordinateUtils.blhToAzEl(
                             p.radarBlh().B(), p.radarBlh().L(), p.radarBlh().H(),
@@ -86,6 +95,25 @@ public class CalibrateV2 {
                     return new RadarErrorAnalyzer.ErrorSample(distKm, p.targetBlh().H(), azError, elError);
                 })
                 .toList();
+
+        // 空雷达数据保护：所有数据点的 radarBlh 均为 null 时，errorSamples 为空，
+        // RadarErrorAnalyzer.analyze() 会静默返回全零统计，产出补偿值为 0 的无效标定文件。
+        // 必须在此处拦截，防止无效标定结果被投入使用。
+        int totalPoints = data.points().size();
+        int radarNullCount = totalPoints - errorSamples.size();
+        if (errorSamples.isEmpty()) {
+            String msg = String.format(
+                    "雷达误差分析失败：全部 %d 个数据点的 radarBlh 为 null，无法计算雷达补偿参数。"
+                    + "请确认标定数据中包含有效的雷达观测坐标。",
+                    totalPoints);
+            log.severe(msg);
+            throw new IllegalStateException(msg);
+        }
+        if (radarNullCount > 0) {
+            log.warning(String.format(
+                    "雷达误差分析警告：%d/%d 个数据点的 radarBlh 为 null，已跳过（仅使用 %d 个有效点）",
+                    radarNullCount, totalPoints, errorSamples.size()));
+        }
 
         RadarErrorAnalyzer analyzer = new RadarErrorAnalyzer();
         RadarErrorAnalyzer.RadarAnalysisResult radarAnalysis = analyzer.analyze(errorSamples);
@@ -106,7 +134,7 @@ public class CalibrateV2 {
         // 6. 打印报告
         printReport(optical, radarAnalysis);
 
-        System.out.println("[*] Phase 2 标定完成: " + outputPath);
+        log.info("Phase 2 标定完成: " + outputPath);
     }
 
     /**
@@ -137,10 +165,10 @@ public class CalibrateV2 {
             );
 
             // DEBUG: 打印每个数据点的详细信息
-            System.out.printf("    [Point %d] target=(%.6f, %.6f, %.6f) geoAz=%.6f geoEl=%.6f | Az_measured=%.2f El_measured=%.2f | dAz0=%.6f dEl0=%.6f%n",
+            log.fine(String.format("[Point %d] target=(%.6f, %.6f, %.6f) geoAz=%.6f geoEl=%.6f | Az_measured=%.2f El_measured=%.2f | dAz0=%.6f dEl0=%.6f",
                     i, p.targetBlh().B(), p.targetBlh().L(), p.targetBlh().H(),
                     geoAzEl[0], geoAzEl[1], p.azMeasured(), p.elMeasured(),
-                    normalizeAngle(p.azMeasured() - geoAzEl[0]), p.elMeasured() - geoAzEl[1]);
+                    normalizeAngle(p.azMeasured() - geoAzEl[0]), p.elMeasured() - geoAzEl[1]));
 
             // 计算零点偏差
             double dAz0 = normalizeAngle(p.azMeasured() - geoAzEl[0]);
@@ -150,8 +178,11 @@ public class CalibrateV2 {
             dEl0List.add(dEl0);
 
             // 加权：近距离权重更大
-            double dist3D = CoordinateUtils.distance3D(opticalBlh, p.targetBlh()) / 1000.0;
-            weights.add(1.0 / (1.0 + dist3D));
+            // 距离基准与分段标定一致，使用光电站→目标的 haversine 水平距离
+            double distKm = CoordinateUtils.haversineDistance(
+                    opticalBlh.B(), opticalBlh.L(),
+                    p.targetBlh().B(), p.targetBlh().L());
+            weights.add(1.0 / (1.0 + distKm));
         }
 
         // 先算原始 RMS（剔除前，用于诊断）
@@ -164,10 +195,8 @@ public class CalibrateV2 {
         CalibrateV2.OutlierFilterResult azFilter = filterOutliers3Sigma(dAz0List, weights);
         CalibrateV2.OutlierFilterResult elFilter = filterOutliers3Sigma(dEl0List, weights);
 
-        System.out.println("    方位野值剔除: " + dAz0List.size() + " → " + azFilter.validValues.size()
-                + " (剔除 " + azFilter.removedCount + " 个)");
-        System.out.println("    俯仰野值剔除: " + dEl0List.size() + " → " + elFilter.validValues.size()
-                + " (剔除 " + elFilter.removedCount + " 个)");
+        log.fine("方位野值剔除: " + dAz0List.size() + " → " + azFilter.validValues.size() + " (剔除 " + azFilter.removedCount + " 个)");
+        log.fine("俯仰野值剔除: " + dEl0List.size() + " → " + elFilter.validValues.size() + " (剔除 " + elFilter.removedCount + " 个)");
 
         // 用剔除后的数据做加权平均
         double dAz0 = weightedAverage(azFilter.validValues, azFilter.validWeights);
@@ -449,51 +478,48 @@ public class CalibrateV2 {
         sb.append("}\n");
 
         Files.writeString(Path.of(outputPath), sb.toString());
-        System.out.println("[OK] 保存到: " + outputPath);
+        log.info("保存到: " + outputPath);
     }
 
     private static void printReport(
             CalibrateV2.CalibrationResult optical,
             RadarErrorAnalyzer.RadarAnalysisResult radar) {
 
-        System.out.println();
-        System.out.println("============================================================");
-        System.out.println("         Phase 2 标定报告（光电 + 雷达）");
-        System.out.println("============================================================");
+        log.info("============ Phase 2 标定报告（光电 + 雷达） ============");
 
-        System.out.println("\n[光电标定结果]");
-        System.out.printf("  航向零点偏差  ΔAz0 = %+.6f°%n", optical.dAz0());
-        System.out.printf("  俯仰零点偏差  ΔEl0 = %+.6f°%n", optical.dEl0());
-        System.out.printf("  RMS(剔除后): Az=%.6f°, El=%.6f°%n", optical.rmsAz(), optical.rmsEl());
+        log.info("[光电标定结果]");
+        log.info(String.format("  航向零点偏差  ΔAz0 = %+.6f°", optical.dAz0()));
+        log.info(String.format("  俯仰零点偏差  ΔEl0 = %+.6f°", optical.dEl0()));
+        log.info(String.format("  RMS(剔除后): Az=%.6f°, El=%.6f°", optical.rmsAz(), optical.rmsEl()));
         if (optical.validCount() != optical.totalCount()) {
-            System.out.printf("  RMS(原始):   Az=%.6f°, El=%.6f°%n", optical.rawRmsAz(), optical.rawRmsEl());
+            log.info(String.format("  RMS(原始):   Az=%.6f°, El=%.6f°", optical.rawRmsAz(), optical.rawRmsEl()));
         }
-        System.out.printf("  有效数据: %d/%d%n", optical.validCount(), optical.totalCount());
+        log.info("  有效数据: " + optical.validCount() + "/" + optical.totalCount());
 
-        System.out.println("\n[雷达误差分析]");
+        log.info("[雷达误差分析]");
         var overall = radar.overall();
-        System.out.printf("  方位偏差: %.4f° ± %.4f°%n", overall.meanAz(), overall.stdAz());
-        System.out.printf("  俯仰偏差: %.4f° ± %.4f°%n", overall.meanEl(), overall.stdEl());
-        System.out.printf("  样本数: %d%n", overall.count());
+        log.info(String.format("  方位偏差: %.4f° ± %.4f°", overall.meanAz(), overall.stdAz()));
+        log.info(String.format("  俯仰偏差: %.4f° ± %.4f°", overall.meanEl(), overall.stdEl()));
+        log.info("  样本数: " + overall.count());
 
-        System.out.println("\n[按距离分段]");
+        log.info("[按距离分段]");
         radar.byDistance().forEach((k, v) ->
-                System.out.printf("  %-8s: ΔAz=%.4f°, ΔEl=%.4f° (n=%d)%n", k, v.meanAz(), v.meanEl(), v.count()));
+                log.info(String.format("  %-8s: ΔAz=%.4f°, ΔEl=%.4f° (n=%d)", k, v.meanAz(), v.meanEl(), v.count())));
 
-        System.out.println("\n[雷达补偿策略]");
+        log.info("[雷达补偿策略]");
         if (radar.strategy() instanceof RadarErrorAnalyzer.FixedCompensation fc) {
-            System.out.println("  类型: 固定补偿");
-            System.out.printf("  ΔAz_radar = %.6f°%n", fc.dAz());
-            System.out.printf("  ΔEl_radar = %.6f°%n", fc.dEl());
+            log.info("  类型: 固定补偿");
+            log.info(String.format("  ΔAz_radar = %.6f°", fc.dAz()));
+            log.info(String.format("  ΔEl_radar = %.6f°", fc.dEl()));
         } else if (radar.strategy() instanceof RadarErrorAnalyzer.SegmentedCompensation sc) {
-            System.out.printf("  类型: 分段补偿（按%s）%n", sc.dimension());
+            log.info("  类型: 分段补偿（按" + sc.dimension() + "）");
             sc.segments().forEach((k, v) ->
-                    System.out.printf("  %-8s: ΔAz=%.6f°, ΔEl=%.6f°%n", k, v.meanAz(), v.meanEl()));
+                    log.info(String.format("  %-8s: ΔAz=%.6f°, ΔEl=%.6f°", k, v.meanAz(), v.meanEl())));
         }
 
-        System.out.println("\n[结论]");
-        System.out.println(radar.recommendation());
-        System.out.println("============================================================");
+        log.info("[结论]");
+        log.info(radar.recommendation());
+        log.info("============================================================");
     }
 
     private static double round6(double v) {

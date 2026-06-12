@@ -5,6 +5,8 @@ import gds.cloud.module.antidrone.utils.radar.calibration.model.StationBLH;
 import gds.cloud.module.antidrone.utils.radar.calibration.util.CoordinateUtils;
 
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Phase 2 在线跟踪器（配置驱动版）
@@ -20,6 +22,8 @@ import java.util.*;
  * - 对外 API 完全不变：RadarOpticTrackerV2.RadarCompensation 等类型名、TrackingCommand 字段、compute() 签名均保持原样
  */
 public class RadarOpticTrackerV2 {
+
+    private static final Logger log = Logger.getLogger(RadarOpticTrackerV2.class.getName());
 
     private final StationBLH opticalBlh;
     private final double dAz0;
@@ -93,21 +97,15 @@ public class RadarOpticTrackerV2 {
 
         TrackingCommand cmd = new TrackingCommand(azCmd, elCmdOut, azGeo, elGeoOut, dAz0, dEl0, dAzRadar, dElRadar, opticalToTargetRange, targetWidth, targetHeight);
 
-        // 调试打印
-        System.out.println("=== 计算过程 ===");
-
-        System.out.println("方位角 (Az):");
-        System.out.printf("  几何角: azGeo=%.6f° | 雷达补偿: dAzRadar=%.6f° | 固定补偿: dAz0=%.6f° | 总指令 (归一化前): azCmd=%.6f°%n",
-            azGeo, dAzRadar, dAz0, azCmd);
-        System.out.println("俯仰角 (El):");
-        System.out.printf("  几何角: elGeo=%.6f° | 雷达补偿: dElRadar=%.6f° | 固定补偿: dEl0=%.6f° | 总指令 (归一化前): elCmd=%.6f° | 设备约定(%s): elCmdOut=%.6f°%n",
-            elGeo, dElRadar, dEl0, elCmd, elevationConvention, elCmdOut);
-        System.out.printf("其他: 距离=%.2fm, 宽=%.2fm, 高=%.2fm%n", opticalToTargetRange, targetWidth, targetHeight);
-        System.out.println("=== 相关目标BLH信息 ===");
-        System.out.printf("目标BLH: B=%.6f°, L=%.6f°, H=%.1fm%n", targetB, targetL, targetH);
-        System.out.printf("光电BLH: B=%.6f°, L=%.6f°, H=%.1fm%n", opticalBlh.B(), opticalBlh.L(), opticalBlh.H());
-        System.out.printf("雷达BLH: B=%.6f°, L=%.6f°, H=%.1fm%n", opticalBlh.B(), opticalBlh.L(), opticalBlh.H());  
-
+        log.fine(String.format("=== 计算过程 ==="));
+        log.fine(String.format("方位角 (Az): 几何角=%.6f° | 雷达补偿=%.6f° | 固定补偿=%.6f° | 总指令=%.6f°",
+            azGeo, dAzRadar, dAz0, azCmd));
+        log.fine(String.format("俯仰角 (El): 几何角=%.6f° | 雷达补偿=%.6f° | 固定补偿=%.6f° | 总指令=%.6f° | 设备约定(%s): elCmdOut=%.6f°",
+            elGeo, dElRadar, dEl0, elCmd, elevationConvention, elCmdOut));
+        log.fine(String.format("距离=%.2fm, 宽=%.2fm, 高=%.2fm", opticalToTargetRange, targetWidth, targetHeight));
+        log.fine(String.format("目标BLH: B=%.6f°, L=%.6f°, H=%.1fm", targetB, targetL, targetH));
+        log.fine(String.format("光电BLH: B=%.6f°, L=%.6f°, H=%.1fm", opticalBlh.B(), opticalBlh.L(), opticalBlh.H()));
+        log.fine(String.format("雷达BLH: B=%.6f°, L=%.6f°, H=%.1fm", opticalBlh.B(), opticalBlh.L(), opticalBlh.H()));
 
         return cmd;
     }
@@ -161,10 +159,10 @@ public class RadarOpticTrackerV2 {
 
         // 交互模式
         RadarOpticTrackerV2 tracker = new RadarOpticTrackerV2(configPath);
-        System.out.println("\n[*] Phase 2 跟踪器已就绪，等待目标数据...");
-        System.out.println("    输入格式: B L H [radarRange] [radarArea]");
-        System.out.println("    示例: 39.905 116.408 100 5000 2.5");
-        System.out.println("    输入 'q' 退出\n");
+        log.info("Phase 2 跟踪器已就绪，等待目标数据...");
+        log.info("    输入格式: B L H [radarRange] [radarArea]");
+        log.info("    示例: 39.905 116.408 100 5000 2.5");
+        log.info("    输入 'q' 退出\n");
 
         Scanner scanner = new Scanner(System.in);
         while (scanner.hasNextLine()) {
@@ -173,7 +171,7 @@ public class RadarOpticTrackerV2 {
 
             String[] parts = line.split("\\s+");
             if (parts.length < 3) {
-                System.out.println("    格式错误，请输入: B L H [radarRange] [radarArea]");
+                log.warning("格式错误，请输入: B L H [radarRange] [radarArea]");
                 continue;
             }
 
@@ -181,33 +179,27 @@ public class RadarOpticTrackerV2 {
                 double B = Double.parseDouble(parts[0]);
                 double L = Double.parseDouble(parts[1]);
                 double H = Double.parseDouble(parts[2]);
-                
+
                 Double radarRange = parts.length > 3 ? Double.parseDouble(parts[3]) : null;
                 Double radarArea = parts.length > 4 ? Double.parseDouble(parts[4]) : null;
 
                 TrackingCommand cmd = tracker.compute(B, L, H, radarRange, radarArea);
-                System.out.println(" ------最终结果");
-                System.out.printf("    → Az=%d  El=%d%n",
-                    (long)cmd.azCmd(), (long)cmd.elCmd());
-                System.out.printf("      光电距目标: %.2fm | 目标宽: %.2fm | 目标高: %.2fm%n",
-                    cmd.opticalToTargetRange(), cmd.targetWidth(), cmd.targetHeight());
+                log.info(String.format("最终结果: Az=%d  El=%d, 光电距目标=%.2fm, 目标宽=%.2fm, 目标高=%.2fm",
+                    (long)cmd.azCmd(), (long)cmd.elCmd(),
+                    cmd.opticalToTargetRange(), cmd.targetWidth(), cmd.targetHeight()));
             } catch (Exception e) {
-                System.out.println("    错误: " + e.getMessage());
+                log.log(Level.SEVERE, "计算错误: " + e.getMessage(), e);
             }
         }
     }
 
     private static void simulate(String configPath) {
-        System.out.println("\n[*] Phase 2 模拟跟踪测试（带雷达参数）\n");
+        log.info("Phase 2 模拟跟踪测试（带雷达参数）");
 
         RadarOpticTrackerV2 tracker = new RadarOpticTrackerV2(configPath);
 
         double bStart = 39.9050, lStart = 116.4080, hStart = 100.0;
         double bEnd = 39.9080, lEnd = 116.4110, hEnd = 250.0;
-
-        System.out.printf("  %4s  %10s  %8s  %6s  %6s  %10s  %6s  %6s%n",
-            "帧号", "B", "H", "Az", "El", "optDist(m)", "宽(m)", "高(m)");
-        System.out.println("  " + "-".repeat(80));
 
         for (int i = 0; i < 10; i++) {
             double t = i / 9.0;
@@ -215,25 +207,21 @@ public class RadarOpticTrackerV2 {
             double L = lStart + t * (lEnd - lStart);
             double H = hStart + t * (hEnd - hStart);
 
-            // 模拟雷达参数
-            Double radarRange = 5000.0 + i * 500;  // 5km-9.5km 递增
-            Double radarArea = 2.5;                  // 固定面积
+            Double radarRange = 5000.0 + i * 500;
+            Double radarArea = 2.5;
 
             TrackingCommand cmd = tracker.compute(B, L, H, radarRange, radarArea);
 
-            System.out.printf("  %4d  %10.6f  %8.1f  %10.4f  %10.4f  %10.2f  %6.2f  %6.2f%n",
+            log.info(String.format("帧%d: B=%.6f H=%.1f Az=%.4f El=%.4f dist=%.2f 宽=%.2f 高=%.2f",
                 i + 1, B, H, cmd.azCmd(), cmd.elCmd(),
-                cmd.opticalToTargetRange(), cmd.targetWidth(), cmd.targetHeight());
+                cmd.opticalToTargetRange(), cmd.targetWidth(), cmd.targetHeight()));
         }
 
-        System.out.println("\n[*] 模拟完成（无雷达面积参数测试）");
-        
-        // 无雷达面积参数测试
-        System.out.println("\n[*] 无雷达面积参数测试（使用默认值）\n");
+        log.info("模拟完成（无雷达面积参数测试）");
+
         TrackingCommand cmdDefault = tracker.compute(39.9050, 116.4080, 100.0, null, null);
-        System.out.printf("  输入: B=39.9050, L=116.4080, H=100.0, radarRange=null, radarArea=null%n");
-        System.out.printf("  输出: 宽=%.2fm, 高=%.2fm%n", 
-            cmdDefault.targetWidth(), cmdDefault.targetHeight());
+        log.info(String.format("无雷达面积参数测试: 宽=%.2fm, 高=%.2fm",
+            cmdDefault.targetWidth(), cmdDefault.targetHeight()));
     }
 
     public static class TrackingException extends RuntimeException {

@@ -51,9 +51,14 @@ public class CoordinateUtils {
 
         double sinTheta = Math.sin(theta);
         double cosTheta = Math.cos(theta);
+        double sinTheta2 = sinTheta * sinTheta;
+        double cosTheta3 = cosTheta * cosTheta * cosTheta;
+        // Bowring 迭代公式分母为 (1 - e²·sin²θ)^(3/2)，不是 1 次方
+        double denom = Math.pow(1.0 - E2 * sinTheta2, 1.5);
 
-        double B_rad = Math.atan2(Z + (E2 * (1 - E2) * A / (1 - E2 * sinTheta * sinTheta)) * sinTheta * sinTheta * sinTheta,
-                                   p - E2 * A / (1 - E2 * sinTheta * sinTheta) * cosTheta * cosTheta * cosTheta);
+        double B_rad = Math.atan2(
+            Z + E2 * (1 - E2) * A * sinTheta2 * sinTheta / denom,
+            p - E2 * A * cosTheta3 / denom);
 
         double sinB = Math.sin(B_rad);
         double N = A / Math.sqrt(1 - E2 * sinB * sinB);

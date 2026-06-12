@@ -37,6 +37,7 @@ public class SmoothTrackingController {
     private int predictionCount = 0;       // 当前周期已预测次数
     private boolean hasFirstPoint = false; // 是否已有首个雷达点
     private volatile boolean running = false;
+    private volatile Thread controllerThread; // 控制线程引用，用于 interrupt/join
 
     public interface ServoController {
         void moveTo(TrackingCommand cmd);
@@ -157,24 +158,24 @@ public class SmoothTrackingController {
     }
 
     /**
-     * 雷达数据到达时调用（每收到一个雷达点调用一次）
-     * 
+     * 雷达数据到达时调用（每收到一个雷达点调用一次）——线程安全
+     *
      * 行为：
      * 1. 更新跟踪器内部状态
      * 2. 重置预测计数
      * 3. 立即执行该雷达点的原始位置
-     * 
+     *
      * @param timestamp 雷达数据时间戳（毫秒）
      * @param b 目标纬度
      * @param l 目标经度
      * @param h 目标高度
      */
-    public void onRadarData(long timestamp, double b, double l, double h) {
+    public synchronized void onRadarData(long timestamp, double b, double l, double h) {
         onRadarData(timestamp, b, l, h, null);
     }
 
     /**
-     * 雷达数据到达时调用（带目标面积）
+     * 雷达数据到达时调用（带目标面积）——线程安全
      *
      * 行为：
      * 1. 更新跟踪器内部状态（含目标面积）
@@ -187,7 +188,7 @@ public class SmoothTrackingController {
      * @param h 目标高度
      * @param radarArea 目标雷达截面积（可为 null）
      */
-    public void onRadarData(long timestamp, double b, double l, double h, Double radarArea) {
+    public synchronized void onRadarData(long timestamp, double b, double l, double h, Double radarArea) {
         // 1. 更新跟踪器
         tracker.update(timestamp, b, l, h, radarArea);
 
@@ -204,37 +205,63 @@ public class SmoothTrackingController {
 
     /**
      * 启动光电控制循环
-     * 
-     * 以固定周期调用 tick()，周期由 predictionInterval 控制
+     *
+     * 以固定周期调用 tick()，周期由 predictionInterval 控制。
+     * 控制线程为 daemon 线程，不会阻止 JVM 退出。
      */
     public void start() {
         running = true;
-        new Thread(() -> {
-            while (running) {
-                tick();
-                sleep(predictionInterval);
+        Thread t = new Thread(() -> {
+            try {
+                while (running) {
+                    tick();
+                    Thread.sleep(predictionInterval);
+                }
+            } catch (InterruptedException e) {
+                // stop() 调用 interrupt() 唤醒线程，正常退出循环
+                Thread.currentThread().interrupt();
             }
-        }, "TrackingController").start();
-    }
-
-    public void stop() {
-        running = false;
+        }, "TrackingController");
+        t.setDaemon(true);
+        controllerThread = t;
+        t.start();
     }
 
     /**
-     * 重置控制器状态（切换目标时调用）
+     * 停止光电控制循环
+     *
+     * 设置 running=false 并中断控制线程（使其从 sleep 中立即醒来），
+     * 然后等待线程退出（最多 2 秒）。控制线程为 daemon 线程，
+     * 即使 join 超时也不会阻止 JVM 退出。
+     */
+    public void stop() {
+        running = false;
+        Thread t = controllerThread;
+        if (t != null) {
+            t.interrupt();  // 唤醒 sleep 中的线程，使其立即检查 running 标志
+            try {
+                t.join(2000); // 等待线程退出，最多 2 秒
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            controllerThread = null;
+        }
+    }
+
+    /**
+     * 重置控制器状态（切换目标时调用）——线程安全
      *
      * 清空当前轨迹和预测计数，准备接收新目标的雷达数据。
-     * 无需先调用 stop()，可在运行中直接调用。
+     * 可在运行中直接调用（与 tick()/onRadarData() 互斥）。
      */
-    public void reset() {
+    public synchronized void reset() {
         this.predictionCount = 0;
         this.hasFirstPoint = false;
         this.tracker.reset();
     }
 
     /**
-     * 单次控制周期（仅供 start() 启动的内部循环调用）
+     * 单次控制周期（仅供 start() 启动的内部循环调用）——线程安全
      *
      * 行为：
      * - 如果还在等待首个雷达点：不发命令
@@ -242,7 +269,7 @@ public class SmoothTrackingController {
      * - 如果在预测阶段且未达到 N 次：执行速度外推预测
      * - 如果预测次数已达 N 次：停止发送命令，光电保持最后位置
      */
-    private void tick() {
+    private synchronized void tick() {
         long now = System.currentTimeMillis();
 
         // 等待首个雷达点
@@ -267,42 +294,38 @@ public class SmoothTrackingController {
     }
 
     /**
-     * 获取当前预测次数（用于测试和调试）
+     * 获取当前预测次数（用于测试和调试）——线程安全
      */
-    public int getPredictionCount() {
+    public synchronized int getPredictionCount() {
         return predictionCount;
     }
 
     /**
-     * 跟踪轨迹是否已具备外推能力（至少有 2 个雷达点，速度可计算）
+     * 跟踪轨迹是否已具备外推能力（至少有 2 个雷达点，速度可计算）——线程安全
      */
-    public boolean isTrackerReady() {
+    public synchronized boolean isTrackerReady() {
         return tracker.isReady();
     }
 
     /**
-     * 是否在等待首个雷达点
+     * 是否在等待首个雷达点——线程安全
      */
-    public boolean isWaitingFirstPoint() {
+    public synchronized boolean isWaitingFirstPoint() {
         return !hasFirstPoint;
     }
 
     /**
-     * 是否在预测阶段（未达到 N 次预测）
+     * 是否在预测阶段（未达到 N 次预测）——线程安全
      */
-    public boolean isInPredictionPhase() {
+    public synchronized boolean isInPredictionPhase() {
         return hasFirstPoint && predictionCount <= maxPredictionCount;
     }
 
     /**
-     * 是否已完成预测（等待下一雷达点）
+     * 是否已完成预测（等待下一雷达点）——线程安全
      */
-    public boolean isWaitingNextPoint() {
+    public synchronized boolean isWaitingNextPoint() {
         return hasFirstPoint && predictionCount > maxPredictionCount;
-    }
-
-    private void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
     }
 
     /** 获取内部 tracker（用于测试） */

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.logging.Logger;
 
 /**
  * Phase 2 模拟数据生成器（修复版）
@@ -21,6 +22,8 @@ import java.util.*;
  * 3. 距离相关误差模型更符合雷达物理特性
  */
 public class Simulator {
+
+    private static final Logger log = Logger.getLogger(Simulator.class.getName());
 
     // 雷达误差模型参数（可配置）
     private double azMeanError = 0.05;      // 方位平均误差（度）
@@ -60,9 +63,9 @@ public class Simulator {
         this.opticalBlh = original.opticalBlh();
         this.radarBlh = original.radarBlh();
 
-        System.out.println("[*] 生成模拟数据...");
-        System.out.println("    光电站: B=" + opticalBlh.B() + ", L=" + opticalBlh.L() + ", H=" + opticalBlh.H());
-        System.out.println("    雷达站: B=" + radarBlh.B() + ", L=" + radarBlh.L() + ", H=" + radarBlh.H());
+        log.info("生成模拟数据...");
+        log.info("光电站: B=" + opticalBlh.B() + ", L=" + opticalBlh.L() + ", H=" + opticalBlh.H());
+        log.info("雷达站: B=" + radarBlh.B() + ", L=" + radarBlh.L() + ", H=" + radarBlh.H());
 
         // 2. 生成30个均匀分布的样本
         List<SimulatedPoint> points = new ArrayList<>();
@@ -221,18 +224,14 @@ public class Simulator {
     }
 
     /**
-     * ENU→BLH（精确 Bowring 迭代法）
+     * ENU→BLH
      *
-     * 先 ENU→ECEF，再 ECEF→BLH（Bowring 迭代法）。
+     * 先 ENU→ECEF，再调用 CoordinateUtils.ecefToBlh()（Bowring 迭代法）。
      * Bowring 公式中的分母项 (1-E2*sin²θ)^(3/2) 在高仰角时不可省略，
      * 否则高度计算偏差可达数十米（对于近距高仰角目标）。
-     *
-     * Bowring 迭代公式：
-     *   Numerator:   Z + e2*(1-e2)*A*sin³(θ) / (1-e2*sin²(θ))^(3/2)
-     *   Denominator: p - e2*A*cos³(θ)      / (1-e2*sin²(θ))^(3/2)
      */
     private StationBLH blhFromEnu(StationBLH station, double e, double n, double u) {
-        // 1. ENU → ECEF
+        // 1. ENU → ECEF（旋转矩阵逆变换）
         double[] ecefS = CoordinateUtils.blhToEcef(station.B(), station.L(), station.H());
         double latRad = Math.toRadians(station.B()), lonRad = Math.toRadians(station.L());
         double sinB = Math.sin(latRad), cosB = Math.cos(latRad);
@@ -242,27 +241,8 @@ public class Simulator {
         double Y = ecefS[1] + cosL * e - sinB * sinL * n + cosB * sinL * u;
         double Z = ecefS[2] + cosB * n + sinB * u;
 
-        // 2. ECEF → BLH（Bowring 迭代）
-        double p = Math.sqrt(X * X + Y * Y);
-        double theta = Math.atan2(Z * CoordinateUtils.A, p * (1 - CoordinateUtils.E2) * CoordinateUtils.A);
-
-        double sinTheta = Math.sin(theta);
-        double cosTheta = Math.cos(theta);
-        double sinTheta2 = sinTheta * sinTheta;
-        double cosTheta3 = cosTheta * cosTheta * cosTheta;
-        double denom = Math.pow(1.0 - CoordinateUtils.E2 * sinTheta2, 1.5);
-
-        double B_rad = Math.atan2(
-            Z + CoordinateUtils.E2 * (1.0 - CoordinateUtils.E2) * CoordinateUtils.A * sinTheta2 * sinTheta / denom,
-            p - CoordinateUtils.E2 * CoordinateUtils.A * cosTheta3 / denom
-        );
-
-        double L_rad = Math.atan2(Y, X);
-        double sinB2 = Math.sin(B_rad) * Math.sin(B_rad);
-        double N = CoordinateUtils.A / Math.sqrt(1.0 - CoordinateUtils.E2 * sinB2);
-        double H = p / Math.cos(B_rad) - N;
-
-        return new StationBLH(Math.toDegrees(B_rad), Math.toDegrees(L_rad), H);
+        // 2. ECEF → BLH（委托 CoordinateUtils，消除重复的 Bowring 实现）
+        return CoordinateUtils.ecefToBlh(X, Y, Z);
     }
 
     private double gaussianRandom(double mean, double std) {
@@ -350,15 +330,15 @@ public class Simulator {
         sb.append("}\n");
 
         Files.writeString(Path.of(outputPath), sb.toString());
-        System.out.println("[OK] 模拟数据已保存到: " + outputPath);
-        System.out.println("    共 " + data.dataPoints().size() + " 个数据点");
+        log.info("模拟数据已保存到: " + outputPath);
+        log.info("共 " + data.dataPoints().size() + " 个数据点");
 
         // 打印分段统计
         printSegmentStats(data.dataPoints());
     }
 
     private void printSegmentStats(List<SimulatedPoint> points) {
-        System.out.println("\n[*] 分段分布统计:");
+        log.info("分段分布统计:");
         Map<String, Integer> counts = new LinkedHashMap<>();
         counts.put("0-1km", 0);
         counts.put("1-3km", 0);
@@ -373,7 +353,7 @@ public class Simulator {
             else counts.put("5-10km", counts.get("5-10km") + 1);
         }
 
-        counts.forEach((k, v) -> System.out.println("    " + k + ": " + v + " 个样本"));
+        counts.forEach((k, v) -> log.info("  " + k + ": " + v + " 个样本"));
     }
 
     // ==================== 数据模型 ====================
@@ -430,10 +410,10 @@ public class Simulator {
             if (args[i].equals("-o") && i + 1 < args.length) outputPath = args[++i];
         }
 
-        System.out.println("[*] Phase 2 模拟数据生成器（修复版）");
-        System.out.println("    输入: " + inputPath);
-        System.out.println("    输出: " + outputPath);
-        System.out.println("    样本数: 32个（每段8个 × 4段）");
+        log.info("Phase 2 模拟数据生成器（修复版）");
+        log.info("输入: " + inputPath);
+        log.info("输出: " + outputPath);
+        log.info("样本数: 32个（每段8个 × 4段）");
 
         Simulator simulator = new Simulator();
         CalibrationDataV2 data = simulator.generate(inputPath);

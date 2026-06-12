@@ -59,8 +59,16 @@ public class RadarErrorAnalyzer {
 
     /**
      * 分析雷达误差
+     *
+     * @param samples 雷达误差样本列表，不允许为空
+     * @throws IllegalArgumentException 若 samples 为空（空样本会产出全零的无效统计）
      */
     public RadarAnalysisResult analyze(List<ErrorSample> samples) {
+        if (samples == null || samples.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "雷达误差样本为空，无法进行分析。请确认标定数据中包含有效的雷达观测坐标。");
+        }
+
         // 1. 计算总体统计
         OverallStats overall = computeOverallStats(samples);
 

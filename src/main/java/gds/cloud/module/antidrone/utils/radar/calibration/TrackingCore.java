@@ -106,9 +106,12 @@ public class TrackingCore {
     /**
      * 根据目标位置获取雷达补偿值
      *
+     * 距离基准：光电站→目标的 haversine 水平距离（km），
+     * 与标定端 CalibrateV2 中 RadarErrorAnalyzer 分段所用的距离基准一致。
+     *
      * @param targetB    目标纬度
      * @param targetL    目标经度
-     * @param opticalBlh 光电站BLH（用于计算水平距离）
+     * @param opticalBlh 光电站BLH（用于计算水平距离，也是标定时的距离基准点）
      * @param radarComp  雷达补偿策略
      * @return [dAz, dEl] 补偿值（度）
      */

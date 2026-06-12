@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * 标定配置加载器
@@ -17,6 +18,8 @@ import java.util.Map;
  * 从 calibration_v2.json 解析标定参数，供 RadarOpticTrackerV2 和 SmoothTrackingController 共用。
  */
 public class TrackerConfigLoader {
+
+    private static final Logger log = Logger.getLogger(TrackerConfigLoader.class.getName());
 
     public static RadarOpticTrackerV2.Config load(String path) {
         try {
@@ -53,14 +56,13 @@ public class TrackerConfigLoader {
                     : null
             );
 
-            System.out.println("[TrackerConfigLoader] 配置加载成功");
-            System.out.printf("  光电站: B=%.6f°, L=%.6f°, H=%.1fm%n",
-                opticalBlh.B(), opticalBlh.L(), opticalBlh.H());
-            System.out.printf("  ΔAz0=%.6f°, ΔEl0=%.6f°%n", dAz0, dEl0);
-            System.out.printf("  雷达补偿类型: %s%n",
-                radarComp instanceof RadarOpticTrackerV2.FixedCompensation ? "fixed" : "segmented");
-            System.out.printf("  总时延: %d ms%n", totalDelayMs);
-            System.out.printf("  俯仰角约定: %s%n", elevationConvention);
+            log.info(String.format("配置加载成功: 光电站 B=%.6f°, L=%.6f°, H=%.1fm",
+                opticalBlh.B(), opticalBlh.L(), opticalBlh.H()));
+            log.info(String.format("ΔAz0=%.6f°, ΔEl0=%.6f°", dAz0, dEl0));
+            log.info("雷达补偿类型: " +
+                (radarComp instanceof RadarOpticTrackerV2.FixedCompensation ? "fixed" : "segmented"));
+            log.info("总时延: " + totalDelayMs + " ms");
+            log.info("俯仰角约定: " + elevationConvention);
 
             return new RadarOpticTrackerV2.Config(opticalBlh, dAz0, dEl0, radarComp, totalDelayMs, elevationConvention);
         } catch (IOException e) {

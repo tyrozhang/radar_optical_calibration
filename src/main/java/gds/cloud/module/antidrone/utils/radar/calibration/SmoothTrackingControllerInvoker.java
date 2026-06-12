@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /**
  * 平滑跟踪控制器调用器（第三方接入层）
@@ -20,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * </pre>
  */
 public class SmoothTrackingControllerInvoker {
+
+    private static final Logger log = Logger.getLogger(SmoothTrackingControllerInvoker.class.getName());
 
     // ==================== 全局默认实例 ====================
 
@@ -55,7 +58,7 @@ public class SmoothTrackingControllerInvoker {
         SmoothTrackingController ctrl = new SmoothTrackingController(
                 configPath, servo, maxPredictionCount, tickIntervalMs);
         controllers.put(key, ctrl);
-        System.out.println("[SmoothTrackingControllerInvoker] 注册实例: " + key);
+        log.info("注册实例: " + key);
         return ctrl;
     }
 
@@ -75,7 +78,7 @@ public class SmoothTrackingControllerInvoker {
         SmoothTrackingController ctrl = new SmoothTrackingController(
                 config, servo, maxPredictionCount, tickIntervalMs);
         controllers.put(key, ctrl);
-        System.out.println("[SmoothTrackingControllerInvoker] 注册实例: " + key);
+        log.info("注册实例: " + key);
         return ctrl;
     }
 
@@ -105,7 +108,7 @@ public class SmoothTrackingControllerInvoker {
                 opticalBlh, dAz0, dEl0, radarComp, servo,
                 maxPredictionCount, tickIntervalMs, totalDelayMs, elevationConvention);
         controllers.put(key, ctrl);
-        System.out.println("[SmoothTrackingControllerInvoker] 注册实例: " + key);
+        log.info("注册实例: " + key);
         return ctrl;
     }
 

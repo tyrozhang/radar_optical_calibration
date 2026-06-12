@@ -3,6 +3,8 @@ package gds.cloud.module.antidrone.utils.radar.calibration;
 import gds.cloud.module.antidrone.utils.radar.calibration.util.CoordinateUtils;
 import gds.cloud.module.antidrone.utils.radar.calibration.model.StationBLH;
 
+import java.util.logging.Logger;
+
 /**
  * 基于真实速度的航迹预测器
  *
@@ -26,6 +28,8 @@ import gds.cloud.module.antidrone.utils.radar.calibration.model.StationBLH;
  * - 光电控制周期50-100ms查询预测角度（弥补2秒间隔）
  */
 public class TrackPredictor {
+
+    private static final Logger log = Logger.getLogger(TrackPredictor.class.getName());
 
     // ==================== 可调参数 ====================
 
@@ -289,7 +293,7 @@ public class TrackPredictor {
     // ==================== 测试用例 ====================
 
     public static void main(String[] args) {
-        System.out.println("\n========== 航迹预测器测试 ==========\n");
+        log.info("========== 航迹预测器测试 ==========");
 
         // 模拟光电跟踪站
         StationBLH opticalBlh = new StationBLH(39.905, 116.408, 50);
@@ -297,12 +301,7 @@ public class TrackPredictor {
         // 创建预测器
         TrackPredictor predictor = new TrackPredictor(opticalBlh);
 
-        System.out.println("测试场景：目标匀速移动，雷达2秒更新，光电50ms查询\n");
-
-        // 打印表头
-        System.out.printf("%-6s | %-12s | %-12s | %-10s | %s%n",
-            "时间", "预测Az", "预测El", "距离(m)", "备注");
-        System.out.println("-".repeat(65));
+        log.info("测试场景：目标匀速移动，雷达2秒更新，光电50ms查询");
 
         long baseTime = System.currentTimeMillis();
 
@@ -326,18 +325,15 @@ public class TrackPredictor {
             // 每400ms打印一次（8帧）
             if (i % 8 == 0) {
                 String note = (i == 0) ? "←雷达更新" : "";
-                System.out.printf("%-6d | %12.4f | %12.4f | %-10s |%s%n",
-                    queryTime - radarTime1,
-                    angles[0],
-                    angles[1],
-                    String.format("%.1f", velNorth * (i * 50.0 / 1000.0)), // 估算距离
-                    note);
+                log.info(String.format("t=%dms | Az=%12.4f | El=%12.4f | dist=%.1fm | %s",
+                    queryTime - radarTime1, angles[0], angles[1],
+                    velNorth * (i * 50.0 / 1000.0), note));
             }
         }
 
         // ========== 第三步：模拟目标机动（速度突变） ==========
-        System.out.println("\n-------- 机动检测测试 --------");
-        System.out.println("场景：目标原本向北，突然向东加速（检测机动）\n");
+        log.info("-------- 机动检测测试 --------");
+        log.info("场景：目标原本向北，突然向东加速（检测机动）");
 
         // 目标突然改变方向
         double newVelEast  = 20.0;  // 速度突变！
@@ -345,14 +341,13 @@ public class TrackPredictor {
         predictor.update(radarTime1 + 2000, targetB + 0.001, targetL + 0.002, targetH,
                          newVelEast, newVelNorth, 0);
 
-        System.out.printf("机动检测结果: %s%n",
-            predictor.isManeuverDetected() ? "检测到机动！" : "未检测到机动");
-        System.out.printf("原速度: (%.2f, %.2f) m/s → 新速度: (%.2f, %.2f) m/s%n",
-            velEast, velNorth, newVelEast, newVelNorth);
+        log.info("机动检测结果: " + (predictor.isManeuverDetected() ? "检测到机动！" : "未检测到机动"));
+        log.info(String.format("原速度: (%.2f, %.2f) m/s → 新速度: (%.2f, %.2f) m/s",
+            velEast, velNorth, newVelEast, newVelNorth));
 
-        System.out.println("\n-------- 测试完成 --------");
-        System.out.println("+ 雷达2秒间隔提供位置+速度");
-        System.out.println("+ 光电50ms查询预测角度");
-        System.out.println("+ 机动检测识别速度突变");
+        log.info("-------- 测试完成 --------");
+        log.info("+ 雷达2秒间隔提供位置+速度");
+        log.info("+ 光电50ms查询预测角度");
+        log.info("+ 机动检测识别速度突变");
     }
 }

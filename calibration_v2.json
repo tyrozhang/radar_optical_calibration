@@ -10,7 +10,8 @@
     "radar_compensation_type": "fixed",
     "dAz_radar": -0.532327,
     "dEl_radar": -0.008304,
-    "radar2opticalTotalDelayMs": 0
+    "elevation_convention": "up_positive",
+    "radar2opticalTotalDelayMs": 100
   },
   "quality": {
     "optical": {

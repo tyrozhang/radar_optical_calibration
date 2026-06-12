@@ -1,0 +1,62 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Maven: compile",
+            "type": "shell",
+            "command": "./mvn",
+            "args": ["compile"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "windows": {
+                "command": "bash",
+                "args": ["mvn", "compile"]
+            }
+        },
+        {
+            "label": "Maven: clean compile",
+            "type": "shell",
+            "command": "./mvn",
+            "args": ["clean", "compile"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "windows": {
+                "command": "bash",
+                "args": ["mvn", "clean", "compile"]
+            }
+        },
+        {
+            "label": "Maven: package",
+            "type": "shell",
+            "command": "./mvn",
+            "args": ["package"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "windows": {
+                "command": "bash",
+                "args": ["mvn", "package"]
+            }
+        }
+    ]
+}

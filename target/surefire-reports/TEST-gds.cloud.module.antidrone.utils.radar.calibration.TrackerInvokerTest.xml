@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="gds.cloud.module.antidrone.utils.radar.calibration.TrackerInvokerTest" time="0.001" tests="0" errors="0" skipped="0" failures="0">
+  <properties>
+    <property name="java.specification.version" value="17"/>
+    <property name="sun.cpu.isalist" value="amd64"/>
+    <property name="sun.jnu.encoding" value="GBK"/>
+    <property name="java.class.path" value="D:\radar_optical_calibration\target\test-classes;D:\radar_optical_calibration\target\classes;"/>
+    <property name="java.vm.vendor" value="Oracle Corporation"/>
+    <property name="sun.arch.data.model" value="64"/>
+    <property name="user.variant" value=""/>
+    <property name="java.vendor.url" value="https://java.oracle.com/"/>
+    <property name="user.timezone" value="Asia/Shanghai"/>
+    <property name="os.name" value="Windows 11"/>
+    <property name="java.vm.specification.version" value="17"/>
+    <property name="sun.java.launcher" value="SUN_STANDARD"/>
+    <property name="user.country" value="CN"/>
+    <property name="sun.boot.library.path" value="D:\Java\jdk-17.0.2\bin"/>
+    <property name="sun.java.command" value="C:\Users\zhangyp\AppData\Local\Temp\surefire7804303049847139806\surefirebooter-20260428142247822_3.jar C:\Users\zhangyp\AppData\Local\Temp\surefire7804303049847139806 2026-04-28T14-22-47_444-jvmRun1 surefire-20260428142247822_1tmp surefire_0-20260428142247822_2tmp"/>
+    <property name="jdk.debug" value="release"/>
+    <property name="surefire.test.class.path" value="D:\radar_optical_calibration\target\test-classes;D:\radar_optical_calibration\target\classes;"/>
+    <property name="sun.cpu.endian" value="little"/>
+    <property name="user.home" value="C:\Users\zhangyp"/>
+    <property name="user.language" value="zh"/>
+    <property name="java.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.version.date" value="2022-01-18"/>
+    <property name="java.home" value="D:\Java\jdk-17.0.2"/>
+    <property name="file.separator" value="\"/>
+    <property name="basedir" value="D:\radar_optical_calibration"/>
+    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="line.separator" value="&#10;"/>
+    <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
+    <property name="java.specification.name" value="Java Platform API Specification"/>
+    <property name="surefire.real.class.path" value="C:\Users\zhangyp\AppData\Local\Temp\surefire7804303049847139806\surefirebooter-20260428142247822_3.jar"/>
+    <property name="user.script" value=""/>
+    <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
+    <property name="java.runtime.version" value="17.0.2+8-LTS-86"/>
+    <property name="user.name" value="zhangyp"/>
+    <property name="path.separator" value=";"/>
+    <property name="os.version" value="10.0"/>
+    <property name="java.runtime.name" value="Java(TM) SE Runtime Environment"/>
+    <property name="file.encoding" value="GBK"/>
+    <property name="java.vm.name" value="Java HotSpot(TM) 64-Bit Server VM"/>
+    <property name="localRepository" value="D:\maven_repository"/>
+    <property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/>
+    <property name="java.io.tmpdir" value="C:\Users\zhangyp\AppData\Local\Temp\"/>
+    <property name="java.version" value="17.0.2"/>
+    <property name="user.dir" value="D:\radar_optical_calibration"/>
+    <property name="os.arch" value="amd64"/>
+    <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
+    <property name="sun.os.patch.level" value=""/>
+    <property name="native.encoding" value="GBK"/>
+    <property name="java.library.path" value="D:\Java\jdk-17.0.2\bin;C:\Windows\Sun\Java\bin;C:\Windows\system32;C:\Windows;C:\Users\zhangyp\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;C:\Users\zhangyp\bin;C:\Users\zhangyp\AppData\Roaming\uv\python\cpython-3.14-windows-x86_64-none\Scripts;D:\tyrozapp\Microsoft VS Code;C:\Program Files\Common Files\Oracle\Java\javapath;D:\tyrozapp\VMware\VMware Workstation\bin;C:\Windows\system32;C:\Program Files\Common Files\Oracle\Java\javapath;D:\tyrozapp\VMware\VMware Workstation\bin;C:\Windows\system32;C:\Program Files\Common Files\Oracle\Java\javapath;D:\tyrozapp\VMware\VMware Workstation\bin;C:\Windows\system32;C:\Windows\System32;D:\Java\jdk1.8.0_91_origin\bin;D:\Java\jdk1.8.0_91_origin\jre;D:\apache-maven-3.9.10\bin;%PYTHON_HOME%;D:\tyrozapp\node-v24.10.0-win-x64;D:\Program Files\wkhtmltopdf\bin;D:\Program Files\IDM Computer Solutions\UltraEdit;D:\Program Files\Git\cmd;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin\bash.exe;D:\Java\jdk1.8.0_91_origin\bin;D:\Java\jdk1.8.0_91_origin\jre;D:\apache-maven-3.9.10\bin;D:\python3.8;D:\tyrozapp\node-v24.10.0-win-x64;D:\Program Files\wkhtmltopdf\bin;D:\Program Files\IDM Computer Solutions\UltraEdit;D:\Program Files\Git\cmd;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin\bash.exe;D:\Java\jdk1.8.0_91_origin\bin;D:\Java\jdk1.8.0_91_origin\jre;D:\apache-maven-3.9.10\bin;D:\python3.8;D:\tyrozapp\node-v24.10.0-win-x64;D:\Program Files\wkhtmltopdf\bin;D:\Program Files\IDM Computer Solutions\UltraEdit;D:\Program Files\Git\cmd;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin\bash.exe;C:\Users\zhangyp\.local\bin;C:\Users\zhangyp\AppData\Local\Microsoft\WindowsApps;C:\Users\zhangyp\AppData\Local\Programs\Microsoft VS Code\bin;D:\tyrozapp\Microsoft VS Code\bin;D:\Program Files\JetBrains\PyCharm 2023.2.1\bin;D:\Program Files\CodeBuddy CN\bin;D:\Programs\WorkBuddy\bin;C:\Users\zhangyp\AppData\Local\gh\bin;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl;."/>
+    <property name="java.vm.info" value="mixed mode, sharing"/>
+    <property name="java.vendor" value="Oracle Corporation"/>
+    <property name="java.vm.version" value="17.0.2+8-LTS-86"/>
+    <property name="sun.io.unicode.encoding" value="UnicodeLittle"/>
+    <property name="java.class.version" value="61.0"/>
+  </properties>
+</testsuite>
